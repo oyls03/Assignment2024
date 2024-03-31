@@ -1,6 +1,9 @@
 provider "aws" {
-  region = local.region
+  region = "ap-southeast-1"
+  shared_credentials_files = ["C:/Users/iamli/.aws/credentials"]
+  profile = "LS"
 }
+
 
 locals {
   name   = "ls-cluster"
@@ -73,7 +76,7 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    ascode-cluster-wg = {
+    ls-cluster-wg = {
       min_size     = 1
       max_size     = 2
       desired_size = 1
