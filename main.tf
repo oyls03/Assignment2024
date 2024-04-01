@@ -1,12 +1,9 @@
 provider "aws" {
   region = "ap-southeast-1"
-  shared_credentials_files = ["C:/Users/iamli/.aws/credentials"]
-  profile = "LS"
 }
 
-
 locals {
-  name   = "ls-cluster"
+  cluster_name   = "ls-cluster"
   region = "ap-southeast-1"
 
   vpc_cidr = "10.123.0.0/16"
@@ -17,7 +14,7 @@ locals {
   intra_subnets   = ["10.123.5.0/24", "10.123.6.0/24"]
 
   tags = {
-    Example = local.name
+    Example = local.cluster_name
   }
 }
 
@@ -25,7 +22,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 4.0"
 
-  name = local.name
+  name = local.cluster_name
   cidr = local.vpc_cidr
 
   azs             = local.azs
@@ -34,12 +31,14 @@ module "vpc" {
   intra_subnets   = local.intra_subnets
 
   enable_nat_gateway = true
-
+  
   public_subnet_tags = {
+    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
     "kubernetes.io/role/elb" = 1
   }
 
   private_subnet_tags = {
+    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
     "kubernetes.io/role/internal-elb" = 1
   }
 }
@@ -48,7 +47,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "20.8.4"
 
-  cluster_name                   = local.name
+  cluster_name                   = local.cluster_name
   cluster_endpoint_public_access = true
 
   cluster_addons = {
@@ -70,7 +69,7 @@ module "eks" {
   # EKS Managed Node Group(s)
   eks_managed_node_group_defaults = {
     ami_type       = "AL2_x86_64"
-    instance_types = ["t2.micro"]
+    instance_types = ["m5.large"]
 
     attach_cluster_primary_security_group = true
   }
@@ -78,16 +77,20 @@ module "eks" {
   eks_managed_node_groups = {
     ls-cluster-wg = {
       min_size     = 1
-      max_size     = 2
-      desired_size = 1
+      max_size     = 3
+      desired_size = 2
 
-      instance_types = ["t2.micro"]
+      instance_types = ["m5.large"]
       capacity_type  = "SPOT"
 
       tags = {
         ExtraTag = "helloworld"
       }
     }
+  }
+
+  node_security_group_tags = {
+    "kubernetes.io/cluster/${local.cluster_name}" = null
   }
 
   tags = local.tags
